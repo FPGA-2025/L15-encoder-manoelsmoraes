@@ -1,39 +1,38 @@
 module Read_Encoder (
-    input wire clk,            // Clock do sistema
-    input wire rst_n,          // Reset síncrono (ativo baixo)
-    input wire A,              // Sinal A (quadratura)
-    input wire B,              // Sinal B (quadratura)
-    output reg [1:0] dir       // Direção detectada: 00 → sem movimento, 01 → horário, 10 → anti-horário
+    input wire clk,
+    input wire rst_n,
+    input wire A,
+    input wire B,
+    output reg [1:0] dir
 );
-
-    reg A_d, B_d;  // Valores anteriores de A e B
+    reg [1:0] prev_state;
+    reg [1:0] curr_state;
 
     always @(posedge clk or negedge rst_n) begin
-        if (~rst_n) begin
-            // Reset: sem movimento
+        if (!rst_n) begin
+            prev_state <= 2'b00;
+            curr_state <= 2'b00;
             dir <= 2'b00;
-            A_d <= 0;
-            B_d <= 0;
         end else begin
-            // Detectando mudanças nos sinais A e B
-            if (A != A_d || B != B_d) begin
-                // Detecção de movimento horário
-                if (A_d == 0 && B_d == 0 && A == 1 && B == 0) begin
-                    dir <= 2'b01;  // Sentido horário
-                end
-                // Detecção de movimento anti-horário
-                else if (A_d == 0 && B_d == 0 && A == 0 && B == 1) begin
-                    dir <= 2'b10;  // Sentido anti-horário
-                end
-                else begin
-                    dir <= 2'b00;  // Sem movimento
-                end
-            end
+            curr_state <= {A, B};
+
+            case ({prev_state, {A, B}})
+                // CW Transições válidas
+                4'b0001: dir <= 2'b01;
+                4'b0111: dir <= 2'b01;
+                4'b1110: dir <= 2'b01;
+                4'b1000: dir <= 2'b01;
+
+                // CCW Transições válidas
+                4'b0010: dir <= 2'b10;
+                4'b1011: dir <= 2'b10;
+                4'b1101: dir <= 2'b10;
+                4'b0100: dir <= 2'b10;
+
+                default: dir <= 2'b00;
+            endcase
+
+            prev_state <= curr_state;
         end
-
-        // Atualizando os valores anteriores
-        A_d <= A;
-        B_d <= B;
     end
-
 endmodule
