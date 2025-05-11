@@ -1,57 +1,43 @@
 module Encoder (
     input wire clk,
     input wire rst_n,
+
     input wire horario,
     input wire antihorario,
+
     output reg A,
     output reg B
 );
+    reg [1:0] state;  // Controle de estado de 2 bits para o encoder
 
-    // Estados codificados
-    parameter S00 = 2'b00;
-    parameter S01 = 2'b01;
-    parameter S11 = 2'b11;
-    parameter S10 = 2'b10;
-
-    reg [1:0] state, next_state;
-
-    always @(posedge clk or negedge rst_n) begin
+    // Máquina de estados para o Encoder
+    always @(posedge clk) begin
         if (!rst_n) begin
-            state <= S00;
+            state <= 2'b00;  // Estado inicial após o reset
         end else begin
-            state <= next_state;
+            if (horario && !antihorario) begin
+                case (state)
+                    2'b00: state <= 2'b10; // Roda para o sentido horário
+                    2'b10: state <= 2'b11;
+                    2'b11: state <= 2'b01;
+                    2'b01: state <= 2'b00;
+                    default: state <= 2'b00;  // Garantir um estado válido
+                endcase
+            end else if (antihorario && !horario) begin
+                case (state)
+                    2'b00: state <= 2'b01; // Roda para o sentido anti-horário
+                    2'b01: state <= 2'b11;
+                    2'b11: state <= 2'b10;
+                    2'b10: state <= 2'b00;
+                    default: state <= 2'b00;  // Garantir um estado válido
+                endcase
+            end
         end
     end
 
+    // Geração das saídas A e B com base no estado
     always @(*) begin
-        next_state = state;
-
-        if (horario && !antihorario) begin
-            case (state)
-                S00: next_state = S01;
-                S01: next_state = S11;
-                S11: next_state = S10;
-                S10: next_state = S00;
-            endcase
-        end else if (antihorario && !horario) begin
-            case (state)
-                S00: next_state = S10;
-                S10: next_state = S11;
-                S11: next_state = S01;
-                S01: next_state = S00;
-            endcase
-        end
+        A = state[1];  // A é o bit mais significativo do estado
+        B = state[0];  // B é o bit menos significativo do estado
     end
-
-    // Atualiza A e B com base no estado atual
-    always @(*) begin
-        case (state)
-            S00: begin A = 0; B = 0; end
-            S01: begin A = 0; B = 1; end
-            S11: begin A = 1; B = 1; end
-            S10: begin A = 1; B = 0; end
-            default: begin A = 0; B = 0; end
-        endcase
-    end
-
 endmodule
